@@ -2,6 +2,10 @@
 
 This module provides a way to access single members of a zip file archive without downloading the full content from a remote web server. For this library to work, the web server hosting the archive needs to support the [range](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests) header. 
 
+## Installation
+
+`pip install remotezip`
+
 ## Usage
 
 ### Initialization
