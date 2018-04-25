@@ -173,8 +173,13 @@ class RemoteZip(zipfile.ZipFile):
         kwargs.update({'stream': stream})
         kwargs['headers'] = headers = dict(kwargs.get('headers', {}))
         headers['Range'] = range_header
-        res = requests.get(self.url, **kwargs)
-        return self.make_buffer(res.raw if stream else res.content, res.headers['Content-Range'], stream=stream)
-
+        try:
+            res = requests.get(self.url, **kwargs)
+            res.raise_for_status()
+        except Exception as e:
+            print(e)
+        pb = self.make_buffer(res.raw if stream else res.content, res.headers['Content-Range'], stream=stream)
+        print(pb)
+        return pb
 
 

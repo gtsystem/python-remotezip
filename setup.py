@@ -11,7 +11,8 @@ setup(
     description='Access zip file content hosted remotely without downloading the full file.',
     long_description="...",
     long_description_content_type="text/markdown",
-    install_requires=["requests"],
+    install_requires=["requests", "tabulate"],
+    scripts=['bin/remotezip'],
     test_suite='test_remotezip',
     classifiers=(
         'Intended Audience :: Developers',

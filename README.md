@@ -97,6 +97,41 @@ with RemoteZip(url, auth=auth, headers=headers) as z:
     zip.extract('somefile.txt')
 ```
 
+## Command line tool
+
+A simple command line tool is included in this distribution.
+
+```
+usage: remotezip [-h] [-l] [-d DIR] url [filename [filename ...]]
+
+Unzip remote files
+
+positional arguments:
+  url                Url of the zip archive
+  filename           File to extract
+
+optional arguments:
+  -h, --help         show this help message and exit
+  -l, --list         List files in the archive
+  -d DIR, --dir DIR  Extract directory, default current directory
+```
+
+#### Example
+
+```bash
+$ remotezip -l "http://thematicmapping.org/downloads/TM_WORLD_BORDERS-0.3.zip"
+  Length  DateTime             Name
+--------  -------------------  ------------------------
+    2962  2008-07-30 13:58:46  Readme.txt
+   24740  2008-07-30 12:16:46  TM_WORLD_BORDERS-0.3.dbf
+     145  2008-03-12 13:11:54  TM_WORLD_BORDERS-0.3.prj
+ 6478464  2008-07-30 12:16:46  TM_WORLD_BORDERS-0.3.shp
+    2068  2008-07-30 12:16:46  TM_WORLD_BORDERS-0.3.shx
+    
+$ remotezip "http://thematicmapping.org/downloads/TM_WORLD_BORDERS-0.3.zip" Readme.txt
+Extracting Readme.txt...
+```
+
 ## How it works
 
 This module uses the `zipfile.ZipFile` class under the hood to decode the zip file format. The `ZipFile` class is initialized with a file like object that will perform transparently the remote queries.
