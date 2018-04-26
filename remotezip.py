@@ -11,6 +11,10 @@ class NegativeSeek(io.UnsupportedOperation):
     pass
 
 
+class RemoteIOError(Exception):
+    pass
+
+
 def itercouples(objects):
     it = iter(objects)
     try:
@@ -167,19 +171,20 @@ class RemoteZip(zipfile.ZipFile):
 
         return "bytes=%s-%s" % (range_min, range_max)
 
-    def fetch_fun(self, data_range, stream=False):
-        range_header = self.make_header(*data_range)
-        kwargs = dict(self.kwargs)
+    @staticmethod
+    def request(url, range_header, kwargs, stream=False):
         kwargs.update({'stream': stream})
         kwargs['headers'] = headers = dict(kwargs.get('headers', {}))
         headers['Range'] = range_header
+        res = requests.get(url, **kwargs)
+        res.raise_for_status()
+        return res.raw if stream else res.content, res.headers
+
+    def fetch_fun(self, data_range, stream=False):
+        range_header = self.make_header(*data_range)
+        kwargs = dict(self.kwargs)
         try:
-            res = requests.get(self.url, **kwargs)
-            res.raise_for_status()
-        except Exception as e:
-            print(e)
-        pb = self.make_buffer(res.raw if stream else res.content, res.headers['Content-Range'], stream=stream)
-        print(pb)
-        return pb
-
-
+            res, headers = self.request(self.url, range_header, kwargs, stream=stream)
+            return self.make_buffer(res, headers['Content-Range'], stream=stream)
+        except IOError as e:
+            raise RemoteIOError(str(e))
