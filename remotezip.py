@@ -1,13 +1,10 @@
-import requests
 import io
 import zipfile
 
+import requests
+
 
 class OutOfBound(Exception):
-    pass
-
-
-class NegativeSeek(io.UnsupportedOperation):
     pass
 
 
@@ -15,31 +12,17 @@ class RemoteIOError(Exception):
     pass
 
 
-def itercouples(objects):
-    it = iter(objects)
-    try:
-        prev = next(it)
-    except StopIteration:
-        return
-    for l in it:
-        yield prev, l
-        prev = l
-    yield prev, None
-
-
 class PartialBuffer:
     def __init__(self, buffer, offset, size, stream):
-        self.buffer = buffer
+        self.buffer = buffer if stream else io.BytesIO(buffer.read())
         self.offset = offset
         self.size = size
         self.position = offset
         self.position_oob = False
         self.stream = stream
 
-    def __str__(self):
+    def __repr__(self):
         return "<PartialBuffer off=%s size=%s stream=%s>" % (self.offset, self.size, self.stream)
-
-    __repr__ = __str__
 
     def read(self, size=0):
         if size == 0:
@@ -74,7 +57,7 @@ class PartialBuffer:
             buff_pos = self.buffer.tell()
             if relative_position < buff_pos:
                 self.position_oob = True
-                raise NegativeSeek("Negative seek not supported")
+                raise OutOfBound("Negative seek not supported")
 
             skip_bytes = relative_position - buff_pos
             if skip_bytes == 0:
@@ -115,8 +98,7 @@ class RemoteIO(io.IOBase):
             self.buffer.close()
             self.buffer = self.fetch_fun((self.buffer.position, self.buffer.position + fetch_size -1), stream=stream)
 
-        content = self.buffer.read(size)
-        return content
+        return self.buffer.read(size)
 
     def seek(self, offset, whence=0):
         if whence == 2 and self.file_size is None:
@@ -126,7 +108,7 @@ class RemoteIO(io.IOBase):
 
         try:
             return self.buffer.seek(offset, whence)
-        except (OutOfBound, NegativeSeek):
+        except OutOfBound:
             return self.buffer.position   # we ignore the issue here, we will check if buffer is fine during read
 
     def tell(self):
@@ -148,43 +130,42 @@ class RemoteZip(zipfile.ZipFile):
         rio.set_pos2size(self.get_position2size())
 
     def get_position2size(self):
-        position2size = {}
-        for m1, m2 in itercouples(self.infolist()):
-            size = None if m2 is None else m2.header_offset - m1.header_offset
-            position2size[m1.header_offset] = size
+        ilist = self.infolist()
+        if len(ilist) == 0:
+            return {}
+
+        position2size = {ilist[-1].header_offset: None}
+        for i in range(len(ilist) - 1):
+            m1, m2 = ilist[i: i+2]
+            position2size[m1.header_offset] = m2.header_offset - m1.header_offset
+
         return position2size
 
     @staticmethod
-    def make_buffer(fd_or_bytes, content_range_header, stream):
+    def make_buffer(io_buffer, content_range_header, stream):
         range_min, range_max = content_range_header.split("/")[0][6:].split("-")
         range_min, range_max = int(range_min), int(range_max)
-        io_buffer = fd_or_bytes if stream else io.BytesIO(fd_or_bytes)
         return PartialBuffer(io_buffer, range_min, range_max - range_min + 1, stream)
 
     @staticmethod
     def make_header(range_min, range_max):
         if range_max is None:
-            if range_min < 0:
-                return "bytes=%s" % range_min
-            else:
-                return "bytes=%s-" % range_min
-
+            return "bytes=%s%s" % (range_min, '' if range_min < 0 else '-')
         return "bytes=%s-%s" % (range_min, range_max)
 
     @staticmethod
-    def request(url, range_header, kwargs, stream=False):
-        kwargs.update({'stream': stream})
+    def request(url, range_header, kwargs):
         kwargs['headers'] = headers = dict(kwargs.get('headers', {}))
         headers['Range'] = range_header
-        res = requests.get(url, **kwargs)
+        res = requests.get(url, stream=True, **kwargs)
         res.raise_for_status()
-        return res.raw if stream else res.content, res.headers
+        return res.raw, res.headers
 
     def fetch_fun(self, data_range, stream=False):
         range_header = self.make_header(*data_range)
         kwargs = dict(self.kwargs)
         try:
-            res, headers = self.request(self.url, range_header, kwargs, stream=stream)
+            res, headers = self.request(self.url, range_header, kwargs)
             return self.make_buffer(res, headers['Content-Range'], stream=stream)
         except IOError as e:
             raise RemoteIOError(str(e))

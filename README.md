@@ -14,10 +14,7 @@ This module provides a way to access single members of a zip file archive withou
 
 `RemoteZip(url, ...)`
 
-
 To download the content, this library rely on the `requests` module. The constructor interface matches the function `requests.get` module.
-
-
 
 * **url**: Url where the zip file is located *(required)*.
 * **auth**: authentication credentials.
@@ -25,9 +22,7 @@ To download the content, this library rely on the `requests` module. The constru
 * **timeout**: timeout for the request.
 * **verify**: enable/disable certificate verification or set custom certificates location.
 * ... Please look at the [requests](http://docs.python-requests.org/en/master/user/quickstart/#make-a-request) documentation for futher usage details.
-* **initial\_buffer\_size**: This parameter set how much data (bytes) to fetch during the first connection to download the zip file central directory. If your zip file conteins a lot of files, would be a good idea to increase this parameter in order to avoid the need for further remote requests. *Default: 64kb*.
-
-
+* **initial\_buffer\_size**: How much data (in bytes) to fetch during the first connection to download the zip file central directory. If your zip file conteins a lot of files, would be a good idea to increase this parameter in order to avoid the need for further remote requests. *Default: 64kb*.
 
 ### Class Interface
 

@@ -36,23 +36,8 @@ class LocalRemoteZip(rz.RemoteZip):
             f.seek(range_min, 0)
 
             f = io.BytesIO(f.read(range_max - range_min + 1))
-            buff = self.make_buffer(f if stream else f.read(), content_range,
-                                 stream=stream)
+            buff = self.make_buffer(f, content_range, stream=stream)
         return buff
-
-
-class TestItercouple(unittest.TestCase):
-    def test_itercuple_empty(self):
-        t = list(rz.itercouples([]))
-        self.assertEqual(t, [])
-
-    def test_itercuple_one(self):
-        t = list(rz.itercouples(['a']))
-        self.assertEqual(t, [('a', None)])
-
-    def test_itercuple_more(self):
-        t = list(rz.itercouples(['a', 'b', 'c', 'd']))
-        self.assertEqual(t, [('a', 'b'), ('b', 'c'), ('c', 'd'), ('d', None)])
 
 
 class TestPartialBuffer(unittest.TestCase):
@@ -104,7 +89,7 @@ class TestPartialBuffer(unittest.TestCase):
         self.assertEqual(pb.seek(2, 1), 17)
         self.assertEqual(pb.read(), b'ccdd')
 
-        with self.assertRaises(rz.NegativeSeek):
+        with self.assertRaisesRegexp(rz.OutOfBound, "Negative seek not supported"):
             pb.seek(12, 0)
         self.assertEqual(pb.position, 12)
 
@@ -234,13 +219,15 @@ class TestRemoteZip(unittest.TestCase):
         self.assertIsNone(rz.testzip())
 
     def test_make_buffer(self):
-        buff = LocalRemoteZip.make_buffer(b'aaaabbcccdd', 'bytes 0-11/12', stream=False)
+        content_buff = io.BytesIO(b'aaaabbcccdd')
+        buff = LocalRemoteZip.make_buffer(content_buff, 'bytes 0-11/12', stream=False)
         self.assertEqual(buff.size, 12)
         self.assertEqual(buff.position, 0)
         self.assertEqual(buff.offset, 0)
         self.assertFalse(buff.stream)
 
-        buff = LocalRemoteZip.make_buffer(b'aaaabbcccdd', 'bytes 10-21/40', stream=False)
+        content_buff = io.BytesIO(b'aaaabbcccdd')
+        buff = LocalRemoteZip.make_buffer(content_buff, 'bytes 10-21/40', stream=False)
         self.assertEqual(buff.size, 12)
         self.assertEqual(buff.position, 10)
         self.assertEqual(buff.offset, 10)
@@ -264,6 +251,7 @@ class TestRemoteZip(unittest.TestCase):
         header = LocalRemoteZip.make_header(-123, None)
         self.assertEqual(header, 'bytes=-123')
 
+    # TODO: test get_position2size
 
 if __name__ == '__main__':
     unittest.main()
