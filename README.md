@@ -57,8 +57,8 @@ Print all members part of the archive:
 from remotezip import RemoteZip
 
 with RemoteZip('http://.../myfile.zip') as zip:
-	for zip_info in zip.infolist():
-	    print(zip_info.name)
+    for zip_info in zip.infolist():
+        print(zip_info.name)
 ```
 
 
@@ -69,7 +69,7 @@ The following example will extract the file `somefile.txt` from the archive stor
 from remotezip import RemoteZip
 
 with RemoteZip('http://.../myfile.zip') as zip:
-	zip.extract('somefile.txt')
+    zip.extract('somefile.txt')
 ```
 
 #### S3 example
