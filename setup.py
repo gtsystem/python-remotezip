@@ -1,15 +1,18 @@
 from setuptools import setup
 
+with open("README.md") as f:
+    description = f.read()
+
 setup(
     name='remotezip',
-    version='0.9',
+    version='0.9.2',
     author='Giuseppe Tribulato',
     author_email='gtsystem@gmail.com',
     py_modules=['remotezip'],
     url='https://github.com/gtsystem/python-remotezip',
     license='MIT',
     description='Access zip file content hosted remotely without downloading the full file.',
-    long_description="...",
+    long_description=description,
     long_description_content_type="text/markdown",
     install_requires=["requests", "tabulate"],
     scripts=['bin/remotezip'],

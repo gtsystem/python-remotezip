@@ -113,7 +113,7 @@ optional arguments:
 
 #### Example
 
-```bash
+```
 $ remotezip -l "http://thematicmapping.org/downloads/TM_WORLD_BORDERS-0.3.zip"
   Length  DateTime             Name
 --------  -------------------  ------------------------
