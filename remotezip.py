@@ -3,6 +3,8 @@ import zipfile
 
 import requests
 
+__all__ = ['RemoteIOError', 'RemoteZip']
+
 
 class OutOfBound(Exception):
     pass
@@ -18,7 +20,6 @@ class PartialBuffer:
         self.offset = offset
         self.size = size
         self.position = offset
-        self.position_oob = False
         self.stream = stream
 
     def __repr__(self):
@@ -49,14 +50,11 @@ class PartialBuffer:
         relative_position = self.position - self.offset
 
         if relative_position < 0 or relative_position >= self.size:
-            self.position_oob = True
             raise OutOfBound("Position out of buffer bound")
 
-        self.position_oob = False
         if self.stream:
             buff_pos = self.buffer.tell()
             if relative_position < buff_pos:
-                self.position_oob = True
                 raise OutOfBound("Negative seek not supported")
 
             skip_bytes = relative_position - buff_pos
@@ -76,6 +74,7 @@ class RemoteIO(io.IOBase):
         self.buffer = None
         self.file_size = None
         self.position = None
+        self._seek_succeeded = False
         self.member_pos2size = None
 
     def set_pos2size(self, pos2size):
@@ -85,16 +84,15 @@ class RemoteIO(io.IOBase):
         if size == 0:
             size = self.file_size - self.buffer.position
 
-        if self.buffer.position_oob:
+        if not self._seek_succeeded:
             if self.member_pos2size is None:
                 fetch_size = size
                 stream = False
             else:
                 fetch_size = self.member_pos2size[self.buffer.position]
-                if fetch_size is None:
-                    fetch_size = self.file_size - self.buffer.position
                 stream = True
 
+            self._seek_succeeded = True
             self.buffer.close()
             self.buffer = self.fetch_fun((self.buffer.position, self.buffer.position + fetch_size -1), stream=stream)
 
@@ -107,8 +105,11 @@ class RemoteIO(io.IOBase):
             self.file_size = self.buffer.size + self.buffer.position
 
         try:
-            return self.buffer.seek(offset, whence)
+            pos = self.buffer.seek(offset, whence)
+            self._seek_succeeded = True
+            return pos
         except OutOfBound:
+            self._seek_succeeded = False
             return self.buffer.position   # we ignore the issue here, we will check if buffer is fine during read
 
     def tell(self):
@@ -134,7 +135,7 @@ class RemoteZip(zipfile.ZipFile):
         if len(ilist) == 0:
             return {}
 
-        position2size = {ilist[-1].header_offset: None}
+        position2size = {ilist[-1].header_offset: self.start_dir - ilist[-1].header_offset}
         for i in range(len(ilist) - 1):
             m1, m2 = ilist[i: i+2]
             position2size[m1.header_offset] = m2.header_offset - m1.header_offset

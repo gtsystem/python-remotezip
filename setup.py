@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='remotezip',
-    version='0.2',
+    version='0.9',
     author='Giuseppe Tribulato',
     author_email='gtsystem@gmail.com',
     py_modules=['remotezip'],

@@ -137,7 +137,7 @@ class TestRemoteIO(unittest.TestCase):
         rio.seek(0, 2)  # eof
         curr_buffer = rio.buffer
         # we have two file, one at pos 156879 with size 30k and the last at pos
-        rio.set_pos2size({15687: 30*1024, 50354: None})
+        rio.set_pos2size({15687: 30*1024, 50354: 63000})
         rio.seek(15687, 0)
         self.assertEqual(rio.tell(), 15687)
         self.assertEqual(rio.read(5), b'sssss')
@@ -154,7 +154,7 @@ class TestRemoteIO(unittest.TestCase):
         # move to next file
         rio.seek(50354, 0)
         self.assertEqual(rio.read(4), b'ssss')
-        self.assertEqual(rio.buffer.size, 154446)
+        self.assertEqual(rio.buffer.size, 63000)
         self.assertIsNot(rio.buffer, curr_buffer)  # buffer changed
 
         rio.close()

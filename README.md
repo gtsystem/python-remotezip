@@ -138,3 +138,7 @@ How many requests will this module perform to download a member?
 * If the full archive content is smaller than **initial\_buffer\_size**, only one request will be needed.
 * Normally two requests are needed, one to download the central directory and one to download the archive member.
 * If the central directory is bigger than **initial\_buffer\_size**, a third request will be required.
+
+## Alternative modules
+
+There is a similar module available for python [pyremotezip](https://github.com/fcvarela/pyremotezip).
