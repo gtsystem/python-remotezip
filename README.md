@@ -58,7 +58,7 @@ from remotezip import RemoteZip
 
 with RemoteZip('http://.../myfile.zip') as zip:
     for zip_info in zip.infolist():
-        print(zip_info.name)
+        print(zip_info.filename)
 ```
 
 
