@@ -8,6 +8,8 @@ python:
   - "3.8"
 
 # command to install dependencies
-install: "python setup.py install"
+install:
+  - pip install requests-mock
+  - python setup.py install
 # command to run tests
 script: py.test

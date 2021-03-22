@@ -5,12 +5,18 @@ import requests
 
 __all__ = ['RemoteIOError', 'RemoteZip']
 
+class RemoteZipError(Exception):
+    pass
 
-class OutOfBound(Exception):
+class OutOfBound(RemoteZipError):
     pass
 
 
-class RemoteIOError(Exception):
+class RemoteIOError(RemoteZipError):
+    pass
+
+
+class RangeNotSupported(RemoteZipError):
     pass
 
 
@@ -160,6 +166,8 @@ class RemoteZip(zipfile.ZipFile):
         headers['Range'] = range_header
         res = requests.get(url, stream=True, **kwargs)
         res.raise_for_status()
+        if 'Content-Range' not in res.headers:
+            raise RangeNotSupported("The server doesn't support range requests")
         return res.raw, res.headers
 
     def fetch_fun(self, data_range, stream=False):
