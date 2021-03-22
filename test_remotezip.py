@@ -5,6 +5,8 @@ import os
 import shutil
 import io
 
+import requests_mock
+
 import remotezip as rz
 
 
@@ -89,7 +91,7 @@ class TestPartialBuffer(unittest.TestCase):
         self.assertEqual(pb.seek(2, 1), 17)
         self.assertEqual(pb.read(), b'ccdd')
 
-        with self.assertRaisesRegexp(rz.OutOfBound, "Negative seek not supported"):
+        with self.assertRaisesRegex(rz.OutOfBound, "Negative seek not supported"):
             pb.seek(12, 0)
         self.assertEqual(pb.position, 12)
 
@@ -250,6 +252,12 @@ class TestRemoteZip(unittest.TestCase):
 
         header = LocalRemoteZip.make_header(-123, None)
         self.assertEqual(header, 'bytes=-123')
+
+    def test_range_not_supported(self):
+        with requests_mock.Mocker() as m:
+            m.get("http://test.com/file.zip")
+            with self.assertRaises(rz.RangeNotSupported):
+                rz.RemoteZip("http://test.com/file.zip")
 
     # TODO: test get_position2size
 

@@ -6,7 +6,7 @@ from remotezip import RemoteZip
 
 
 def list_files(url, filenames):
-    with RemoteZip(url) as zip:
+    with RemoteZip(url, headers={'User-Agent': 'remotezip'}) as zip:
         if len(filenames) == 0:
             filenames = zip.namelist()
         data = [('Length', 'DateTime', 'Name')]
