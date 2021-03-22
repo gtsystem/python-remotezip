@@ -43,6 +43,10 @@ class LocalRemoteZip(rz.RemoteZip):
 
 
 class TestPartialBuffer(unittest.TestCase):
+    def setUp(self):
+        if not hasattr(self, 'assertRaisesRegex'):
+            self.assertRaisesRegex = self.assertRaisesRegexp
+
     def verify(self, stream):
         pb = rz.PartialBuffer(io.BytesIO(b'aaaabbcccdd'), 10, 11, stream=stream)
         self.assertEqual(pb.position, 10)
