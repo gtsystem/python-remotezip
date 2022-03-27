@@ -162,6 +162,17 @@ class TestRemoteIO(unittest.TestCase):
         self.assertEqual(rio.read(4), b'ssss')
         self.assertEqual(rio.buffer.size, 63000)
         self.assertIsNot(rio.buffer, curr_buffer)  # buffer changed
+        curr_buffer = rio.buffer
+
+        # seek forward
+        rio.seek(60354, 0)
+        self.assertEqual(rio.read(4), b'ssss')
+        self.assertIs(rio.buffer, curr_buffer)      # buffer didn't change
+
+        # seek backward
+        rio.seek(51354, 0)
+        self.assertEqual(rio.read(4), b'ssss')
+        self.assertIsNot(rio.buffer, curr_buffer)   # buffer changed
 
         rio.close()
 

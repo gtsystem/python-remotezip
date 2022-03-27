@@ -82,6 +82,7 @@ class RemoteIO(io.IOBase):
         self.position = None
         self._seek_succeeded = False
         self.member_pos2size = None
+        self._last_member_pos = None
 
     def set_pos2size(self, pos2size):
         self.member_pos2size = pos2size
@@ -95,7 +96,15 @@ class RemoteIO(io.IOBase):
                 fetch_size = size
                 stream = False
             else:
-                fetch_size = self.member_pos2size[self.buffer.position]
+                try:
+                    fetch_size = self.member_pos2size[self.buffer.position]
+                    self._last_member_pos = self.buffer.position
+                except KeyError:
+                    if self._last_member_pos and self._last_member_pos < self.buffer.position:
+                        fetch_size = self.member_pos2size[self._last_member_pos]
+                        fetch_size -= (self.buffer.position - self._last_member_pos)
+                    else:
+                        raise OutOfBound("Attempt to seek outside boundary of current zip member")
                 stream = True
 
             self._seek_succeeded = True
@@ -103,6 +112,9 @@ class RemoteIO(io.IOBase):
             self.buffer = self.fetch_fun((self.buffer.position, self.buffer.position + fetch_size -1), stream=stream)
 
         return self.buffer.read(size)
+
+    def seekable(self):
+        return True
 
     def seek(self, offset, whence=0):
         if whence == 2 and self.file_size is None:

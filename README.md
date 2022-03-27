@@ -45,7 +45,9 @@ To download the content, this library rely on the `requests` module. The constru
 Please look at the [zipfile](https://docs.python.org/3/library/zipfile.html#zipfile-objects) documentation for usage details.
 
 
-**NOTE**: `extractall()` and `testzip()` require to access the full content of the archive. If you need to use such methods, a full download of it would be probably more efficient.
+**NOTE**:
+* `extractall()` and `testzip()` require to access the full content of the archive. If you need to use such methods, a full download of it would be probably more efficient.
+* `RemoteZip.open()` now supports seek operations when reading archive members. However as the content is streamed and DEFLATE format doesn't support seek natively, any negative seek operation will result in a new remote request from the beginning of the member content. This is very inefficient, the recommandation is to use `RemoteZip.extract()` and then open and operate on the extracted file.
 
 ### Examples
 
@@ -138,6 +140,7 @@ How many requests will this module perform to download a member?
 * If the full archive content is smaller than **initial\_buffer\_size**, only one request will be needed.
 * Normally two requests are needed, one to download the central directory and one to download the archive member.
 * If the central directory is bigger than **initial\_buffer\_size**, a third request will be required.
+* If negative seek operations are used in `ZipExtFile`, each of them will result in a new request.
 
 ## Alternative modules
 
