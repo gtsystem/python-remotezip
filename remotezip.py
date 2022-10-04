@@ -176,7 +176,11 @@ class RemoteZip(zipfile.ZipFile):
     def request(url, range_header, kwargs):
         kwargs['headers'] = headers = dict(kwargs.get('headers', {}))
         headers['Range'] = range_header
-        res = requests.get(url, stream=True, **kwargs)
+        session = kwargs.pop('session', None)
+        if session:
+            res = session.get(url, stream=True, **kwargs)
+        else:
+            res = requests.get(url, stream=True, **kwargs)
         res.raise_for_status()
         if 'Content-Range' not in res.headers:
             raise RangeNotSupported("The server doesn't support range requests")
