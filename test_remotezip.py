@@ -286,17 +286,17 @@ class TestRemoteZip(unittest.TestCase):
             testZip = LocalRemoteZip(fname, session=custom_session)
             self.assertIn('session', testZip.kwargs)
 
-            with requests_mock.Mocker() as m:                
-                m.register_uri("GET", "http://test.com/file.zip", headers={'Content-Range': "bytes 0-5/10"}, json={'body':'text'}, status_code=200)
-                
-                def remove_custom_header(response, *args, **kwargs):
-                    custom_session.headers.pop("user-token")
-                custom_session.hooks['response'].append(remove_custom_header)
-                
-                range_header = testZip.make_header(0, 5)
-                
-                testZip.request("http://test.com/file.zip", range_header, testZip.kwargs)
-                self.assertNotIn('user-token', custom_session.headers.keys())
+        with requests_mock.Mocker() as m:                
+            m.register_uri("GET", "http://test.com/file.zip", headers={'Content-Range': "bytes 0-5/10"}, json={'body':'text'}, status_code=200)
+            
+            def remove_custom_header(response, *args, **kwargs):
+                custom_session.headers.pop("user-token")
+            custom_session.hooks['response'].append(remove_custom_header)
+            
+            range_header = testZip.make_header(0, 5)
+            
+            testZip.request("http://test.com/file.zip", range_header, dict(testZip.kwargs))
+            self.assertNotIn('user-token', custom_session.headers.keys())
 
     # TODO: test get_position2size
 
