@@ -33,7 +33,7 @@ To download the content, this library rely on the `requests` module. The constru
 * `RemoteZip.getinfo(name)`
 * `RemoteZip.extract(member[, path[, pwd]])`
 * `RemoteZip.extractall([path[, members[, pwd]]])`
-* `RemoteZip.infolist()`* 
+* `RemoteZip.infolist()`
 * `RemoteZip.namelist()`
 * `RemoteZip.open(name[, mode[, pwd]])`
 * `RemoteZip.printdir()`
