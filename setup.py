@@ -5,7 +5,7 @@ with open("README.md") as f:
 
 setup(
     name='remotezip',
-    version='0.9.4',
+    version='0.10.0',
     author='Giuseppe Tribulato',
     author_email='gtsystem@gmail.com',
     py_modules=['remotezip'],
@@ -15,6 +15,7 @@ setup(
     long_description=description,
     long_description_content_type="text/markdown",
     install_requires=["requests", "tabulate"],
+    tests_require=['requests_mock'],
     scripts=['bin/remotezip'],
     test_suite='test_remotezip',
     classifiers=(
