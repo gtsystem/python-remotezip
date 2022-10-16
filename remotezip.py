@@ -140,9 +140,10 @@ class RemoteIO(io.IOBase):
 
 
 class RemoteZip(zipfile.ZipFile):
-    def __init__(self, url, initial_buffer_size=64*1024, **kwargs):
+    def __init__(self, url, initial_buffer_size=64*1024, session=None, **kwargs):
         self.kwargs = kwargs
         self.url = url
+        self.session = session
 
         rio = RemoteIO(self.fetch_fun, initial_buffer_size)
         super(RemoteZip, self).__init__(rio)
@@ -173,10 +174,13 @@ class RemoteZip(zipfile.ZipFile):
         return "bytes=%s-%s" % (range_min, range_max)
 
     @staticmethod
-    def request(url, range_header, kwargs):
+    def request(url, range_header, kwargs, session=None):
         kwargs['headers'] = headers = dict(kwargs.get('headers', {}))
         headers['Range'] = range_header
-        res = requests.get(url, stream=True, **kwargs)
+        if session:
+            res = session.get(url, stream=True, **kwargs)
+        else:
+            res = requests.get(url, stream=True, **kwargs)
         res.raise_for_status()
         if 'Content-Range' not in res.headers:
             raise RangeNotSupported("The server doesn't support range requests")
@@ -186,7 +190,7 @@ class RemoteZip(zipfile.ZipFile):
         range_header = self.make_header(*data_range)
         kwargs = dict(self.kwargs)
         try:
-            res, headers = self.request(self.url, range_header, kwargs)
+            res, headers = self.request(self.url, range_header, kwargs, self.session)
             return self.make_buffer(res, headers['Content-Range'], stream=stream)
         except IOError as e:
             raise RemoteIOError(str(e))

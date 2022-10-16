@@ -5,6 +5,7 @@ import os
 import shutil
 import io
 
+from requests import session
 import requests_mock
 
 import remotezip as rz
@@ -273,6 +274,28 @@ class TestRemoteZip(unittest.TestCase):
             m.get("http://test.com/file.zip")
             with self.assertRaises(rz.RangeNotSupported):
                 rz.RemoteZip("http://test.com/file.zip")
+
+    def test_custom_session(self):
+        with TmpDir() as dire:
+            fname = os.path.join(dire, 'test.zip')
+            self.make_zip_file(fname)
+
+            custom_session = session()
+            custom_session.headers.update({"user-token": "1234"})
+            
+            test_zip = LocalRemoteZip(fname, session=custom_session)
+
+        with requests_mock.Mocker() as m:                
+            m.register_uri("GET", "http://test.com/file.zip", headers={'Content-Range': "bytes 0-5/10"}, json={'body':'text'}, status_code=200)
+            
+            def remove_custom_header(response, *args, **kwargs):
+                custom_session.headers.pop("user-token")
+            custom_session.hooks['response'].append(remove_custom_header)
+            
+            range_header = test_zip.make_header(0, 5)
+            
+            test_zip.request("http://test.com/file.zip", range_header, dict(test_zip.kwargs), test_zip.session)
+            self.assertNotIn('user-token', custom_session.headers.keys())
 
     # TODO: test get_position2size
 
