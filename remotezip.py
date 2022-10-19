@@ -5,8 +5,10 @@ import requests
 
 __all__ = ['RemoteIOError', 'RemoteZip']
 
+
 class RemoteZipError(Exception):
     pass
+
 
 class OutOfBound(RemoteZipError):
     pass
@@ -21,95 +23,113 @@ class RangeNotSupported(RemoteZipError):
 
 
 class PartialBuffer:
+    """An object with buffer-like interface but containing just a part of the data.
+        The object allows to seek and read like this buffer contains the full data
+        however, any attempt to read data outside the partial data is going to fail
+        with OutOfBound error.
+    """
     def __init__(self, buffer, offset, size, stream):
         self.buffer = buffer if stream else io.BytesIO(buffer.read())
-        self.offset = offset
-        self.size = size
-        self.position = offset
-        self.stream = stream
+        self._offset = offset
+        self._size = size
+        self._position = offset
+        self._stream = stream
+
+    def __len__(self):
+        """Returns the data size contained in the buffer"""
+        return self._size
 
     def __repr__(self):
-        return "<PartialBuffer off=%s size=%s stream=%s>" % (self.offset, self.size, self.stream)
+        return "<PartialBuffer off=%s size=%s stream=%s>" % (self._offset, self._size, self._stream)
 
     def read(self, size=0):
+        """Read data from the buffer from the current position"""
         if size == 0:
-            size = self.offset + self.size - self.position
+            size = self._offset + self._size - self._position
 
         content = self.buffer.read(size)
-        self.position = self.offset + self.buffer.tell()
+        self._position = self._offset + self.buffer.tell()
         return content
 
     def close(self):
+        """Ensure memory and connections are closed"""
         if not self.buffer.closed:
             self.buffer.close()
             if hasattr(self.buffer, 'release_conn'):
                 self.buffer.release_conn()
 
+    def tell(self):
+        """Returns the current position on the virtual buffer"""
+        return self._position
+
     def seek(self, offset, whence):
+        """Change the position on the virtual buffer"""
         if whence == 2:
-            self.position = self.size + self.offset + offset
+            self._position = self._size + self._offset + offset
         elif whence == 0:
-            self.position = offset
+            self._position = offset
         else:
-            self.position += offset
+            self._position += offset
 
-        relative_position = self.position - self.offset
+        relative_position = self._position - self._offset
 
-        if relative_position < 0 or relative_position >= self.size:
+        if relative_position < 0 or relative_position >= self._size:
             raise OutOfBound("Position out of buffer bound")
 
-        if self.stream:
+        if self._stream:
             buff_pos = self.buffer.tell()
             if relative_position < buff_pos:
                 raise OutOfBound("Negative seek not supported")
 
             skip_bytes = relative_position - buff_pos
             if skip_bytes == 0:
-                return self.position
+                return self._position
             self.buffer.read(skip_bytes)
         else:
             self.buffer.seek(relative_position)
 
-        return self.position
+        return self._position
 
 
 class RemoteIO(io.IOBase):
+    """Exposes a file-like interface for zip files hosted remotely. It requires the remote server to
+    support the Range header."""
     def __init__(self, fetch_fun, initial_buffer_size=64*1024):
-        self.fetch_fun = fetch_fun
-        self.initial_buffer_size = initial_buffer_size
+        self._fetch_fun = fetch_fun
+        self._initial_buffer_size = initial_buffer_size
         self.buffer = None
-        self.file_size = None
-        self.position = None
+        self._file_size = None
         self._seek_succeeded = False
-        self.member_pos2size = None
+        self._member_position_to_size = None
         self._last_member_pos = None
 
-    def set_pos2size(self, pos2size):
-        self.member_pos2size = pos2size
+    def set_position_to_size(self, position_to_size):
+        self._member_position_to_size = position_to_size
 
     def read(self, size=0):
+        position = self.tell()
         if size == 0:
-            size = self.file_size - self.buffer.position
+            size = self._file_size - position
 
         if not self._seek_succeeded:
-            if self.member_pos2size is None:
+            if self._member_position_to_size is None:
                 fetch_size = size
                 stream = False
             else:
                 try:
-                    fetch_size = self.member_pos2size[self.buffer.position]
-                    self._last_member_pos = self.buffer.position
+                    fetch_size = self._member_position_to_size[position]
+                    self._last_member_pos = position
                 except KeyError:
-                    if self._last_member_pos and self._last_member_pos < self.buffer.position:
-                        fetch_size = self.member_pos2size[self._last_member_pos]
-                        fetch_size -= (self.buffer.position - self._last_member_pos)
+                    if self._last_member_pos and self._last_member_pos < position:
+                        fetch_size = self._member_position_to_size[self._last_member_pos]
+                        fetch_size -= (position - self._last_member_pos)
                     else:
                         raise OutOfBound("Attempt to seek outside boundary of current zip member")
                 stream = True
 
             self._seek_succeeded = True
             self.buffer.close()
-            self.buffer = self.fetch_fun((self.buffer.position, self.buffer.position + fetch_size -1), stream=stream)
+            self.buffer = self._fetch_fun((position, position + fetch_size - 1), stream=stream)
 
         return self.buffer.read(size)
 
@@ -117,10 +137,10 @@ class RemoteIO(io.IOBase):
         return True
 
     def seek(self, offset, whence=0):
-        if whence == 2 and self.file_size is None:
-            size = self.initial_buffer_size
-            self.buffer = self.fetch_fun((-size, None), stream=False)
-            self.file_size = self.buffer.size + self.buffer.position
+        if whence == 2 and self._file_size is None:
+            size = self._initial_buffer_size
+            self.buffer = self._fetch_fun((-size, None), stream=False)
+            self._file_size = len(self.buffer) + self.buffer.tell()
 
         try:
             pos = self.buffer.seek(offset, whence)
@@ -128,10 +148,10 @@ class RemoteIO(io.IOBase):
             return pos
         except OutOfBound:
             self._seek_succeeded = False
-            return self.buffer.position   # we ignore the issue here, we will check if buffer is fine during read
+            return self.tell()   # we ignore the issue here, we will check if buffer is fine during read
 
     def tell(self):
-        return self.buffer.position
+        return self.buffer.tell()
 
     def close(self):
         if self.buffer:
@@ -139,58 +159,72 @@ class RemoteIO(io.IOBase):
             self.buffer = None
 
 
-class RemoteZip(zipfile.ZipFile):
-    def __init__(self, url, initial_buffer_size=64*1024, session=None, **kwargs):
-        self.kwargs = kwargs
-        self.url = url
-        self.session = session
-
-        rio = RemoteIO(self.fetch_fun, initial_buffer_size)
-        super(RemoteZip, self).__init__(rio)
-        rio.set_pos2size(self.get_position2size())
-
-    def get_position2size(self):
-        ilist = self.infolist()
-        if len(ilist) == 0:
-            return {}
-
-        position2size = {ilist[-1].header_offset: self.start_dir - ilist[-1].header_offset}
-        for i in range(len(ilist) - 1):
-            m1, m2 = ilist[i: i+2]
-            position2size[m1.header_offset] = m2.header_offset - m1.header_offset
-
-        return position2size
+class RemoteFetcher:
+    """Represent a remote file to be fetched in parts"""
+    def __init__(self, url, session=None, **kwargs):
+        self._kwargs = kwargs
+        self._url = url
+        self._session = session
 
     @staticmethod
-    def make_buffer(io_buffer, content_range_header, stream):
-        range_min, range_max = content_range_header.split("/")[0][6:].split("-")
-        range_min, range_max = int(range_min), int(range_max)
-        return PartialBuffer(io_buffer, range_min, range_max - range_min + 1, stream)
+    def parse_range_header(content_range_header):
+        range = content_range_header[6:].split("/")[0]
+        if range.startswith("-"):
+            return int(range), None
+        range_min, range_max = range.split("-")
+        return int(range_min), int(range_max) if range_max else None
 
     @staticmethod
-    def make_header(range_min, range_max):
+    def build_range_header(range_min, range_max):
         if range_max is None:
             return "bytes=%s%s" % (range_min, '' if range_min < 0 else '-')
         return "bytes=%s-%s" % (range_min, range_max)
 
-    @staticmethod
-    def request(url, range_header, kwargs, session=None):
-        kwargs['headers'] = headers = dict(kwargs.get('headers', {}))
-        headers['Range'] = range_header
-        if session:
-            res = session.get(url, stream=True, **kwargs)
+    def _request(self, kwargs):
+        if self._session:
+            res = self._session.get(self._url, stream=True, **kwargs)
         else:
-            res = requests.get(url, stream=True, **kwargs)
+            res = requests.get(self._url, stream=True, **kwargs)
         res.raise_for_status()
         if 'Content-Range' not in res.headers:
             raise RangeNotSupported("The server doesn't support range requests")
-        return res.raw, res.headers
+        return res.raw, res.headers['Content-Range']
 
-    def fetch_fun(self, data_range, stream=False):
-        range_header = self.make_header(*data_range)
-        kwargs = dict(self.kwargs)
+    def prepare_request(self, data_range):
+        range_header = self.build_range_header(*data_range)
+        kwargs = dict(self._kwargs)
+        kwargs['headers'] = headers = dict(kwargs.get('headers', {}))
+        headers['Range'] = range_header
+        return kwargs
+
+    def fetch(self, data_range, stream=False):
+        """Fetch a part of a remote file"""
+        kwargs = self.prepare_request(data_range)
         try:
-            res, headers = self.request(self.url, range_header, kwargs, self.session)
-            return self.make_buffer(res, headers['Content-Range'], stream=stream)
+            res, range_header = self._request(kwargs)
+            range_min, range_max = self.parse_range_header(range_header)
+            return PartialBuffer(res, range_min, range_max - range_min + 1, stream)
         except IOError as e:
             raise RemoteIOError(str(e))
+
+
+class RemoteZip(zipfile.ZipFile):
+    def __init__(self, url, initial_buffer_size=64*1024, session=None, fetcher=RemoteFetcher, **kwargs):
+        fetcher = fetcher(url, session, **kwargs)
+        rio = RemoteIO(fetcher.fetch, initial_buffer_size)
+        super(RemoteZip, self).__init__(rio)
+        rio.set_position_to_size(self._get_position_to_size())
+
+    def _get_position_to_size(self):
+        ilist = self.infolist()
+        if len(ilist) == 0:
+            return {}
+
+        position_to_size = {ilist[-1].header_offset: self.start_dir - ilist[-1].header_offset}
+        for i in range(len(ilist) - 1):
+            m1, m2 = ilist[i: i+2]
+            position_to_size[m1.header_offset] = m2.header_offset - m1.header_offset
+
+        return position_to_size
+
+

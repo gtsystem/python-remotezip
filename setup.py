@@ -5,7 +5,7 @@ with open("README.md") as f:
 
 setup(
     name='remotezip',
-    version='0.10.0',
+    version='0.11.0',
     author='Giuseppe Tribulato',
     author_email='gtsystem@gmail.com',
     py_modules=['remotezip'],
@@ -18,7 +18,7 @@ setup(
     tests_require=['requests_mock'],
     scripts=['bin/remotezip'],
     test_suite='test_remotezip',
-    classifiers=(
+    classifiers=[
         'Intended Audience :: Developers',
         'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: MIT License',
@@ -30,6 +30,8 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8'
-    ),
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10'
+    ]
 )
