@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.6", "3.9", "3.10"]
+        python-version: ["2.7", "3.6", "3.9", "3.10"]
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -28,7 +28,7 @@ jobs:
         pip install requests requests_mock wheel
     - name: Test
       run: |
-        python test_remotezip.py
+        python test_remotezip.py -v
     - name: Package
       run: |
         python setup.py bdist_wheel
