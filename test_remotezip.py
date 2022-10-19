@@ -30,10 +30,12 @@ class ServerSimulator:
         with open(self._fname, 'rb') as f:
             if from_byte < 0:
                 size = f.seek(0, 2)
-                init_pos = f.seek(max(size + from_byte, 0), 0)
+                f.seek(max(size + from_byte, 0), 0)
+                init_pos = f.tell()
                 content = f.read(min(size, -from_byte))
             else:
-                init_pos = f.seek(from_byte, 0)
+                f.seek(from_byte, 0)
+                init_pos = f.tell()
                 content = f.read(to_byte - from_byte + 1)
 
         context.headers['Content-Range'] = rz.RemoteFetcher.build_range_header(init_pos, init_pos + len(content))
