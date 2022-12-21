@@ -238,6 +238,32 @@ class TestRemoteZip(unittest.TestCase):
 
                 self.assertIsNone(zfile.testzip())
 
+    @staticmethod
+    def make_unordered_zip_file(fname):
+        with zipfile.ZipFile(fname, 'w') as zip:
+            zip.writestr("fileA", "A" * 300000 + 'Z')
+            zip.writestr("fileB", "B" * 10000 + 'Z')
+            zip.writestr("fileC", "C" * 100000 + 'Z')
+            info_list = zip.infolist()
+            info_list[0], info_list[1] = info_list[1], info_list[0]
+
+    def test_unordered_fileinfo(self):
+        """Test that zip file with unordered fileinfo records works as well. Fix #13."""
+        with TmpDir() as dire:
+            fname = os.path.join(dire, 'test.zip')
+            self.make_unordered_zip_file(fname)
+
+            with rz.RemoteZip(fname, fetcher=LocalFetcher) as zfile:
+                names = zfile.namelist()
+                self.assertEqual(names, ['fileB', 'fileA', 'fileC'])
+                with zfile.open('fileB', 'r') as f:
+                    self.assertEqual(f.read(), b"B" * 10000 + b'Z')
+                with zfile.open('fileA', 'r') as f:
+                    self.assertEqual(f.read(), b"A" * 300000 + b'Z')
+                with zfile.open('fileC', 'r') as f:
+                    self.assertEqual(f.read(), b"C" * 100000 + b'Z')
+                self.assertIsNone(zfile.testzip())
+
     def test_fetch_part(self):
         # fetch a range
         expected_headers = {'Range': 'bytes=10-20'}

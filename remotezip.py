@@ -1,5 +1,6 @@
 import io
 import zipfile
+from itertools import tee
 
 import requests
 
@@ -208,6 +209,13 @@ class RemoteFetcher:
             raise RemoteIOError(str(e))
 
 
+def pairwise(iterable):
+    # pairwise('ABCDEFG') --> AB BC CD DE EF FG
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
+
+
 class RemoteZip(zipfile.ZipFile):
     def __init__(self, url, initial_buffer_size=64*1024, session=None, fetcher=RemoteFetcher, **kwargs):
         fetcher = fetcher(url, session, **kwargs)
@@ -216,15 +224,12 @@ class RemoteZip(zipfile.ZipFile):
         rio.set_position_to_size(self._get_position_to_size())
 
     def _get_position_to_size(self):
-        ilist = self.infolist()
+        ilist = [info.header_offset for info in self.infolist()]
         if len(ilist) == 0:
             return {}
+        ilist.sort()
+        ilist.append(self.start_dir)
+        return {a: b-a for a, b in pairwise(ilist)}
 
-        position_to_size = {ilist[-1].header_offset: self.start_dir - ilist[-1].header_offset}
-        for i in range(len(ilist) - 1):
-            m1, m2 = ilist[i: i+2]
-            position_to_size[m1.header_offset] = m2.header_offset - m1.header_offset
-
-        return position_to_size
 
 
