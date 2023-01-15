@@ -24,6 +24,8 @@ To download the content, this library rely on the `requests` module. The constru
 * ... Please look at the [requests](http://docs.python-requests.org/en/master/user/quickstart/#make-a-request) documentation for futher usage details.
 * **initial\_buffer\_size**: How much data (in bytes) to fetch during the first connection to download the zip file central directory. If your zip file conteins a lot of files, would be a good idea to increase this parameter in order to avoid the need for further remote requests. *Default: 64kb*.
 * **session**: a custom session object to use for the request.
+* **support_suffix_range**: You can set this attribute to `False` if the remote server doesn't support suffix range
+  (negative offset). Notice that this option will use one more HEAD request to fetch the content length.
 
 ### Class Interface
 

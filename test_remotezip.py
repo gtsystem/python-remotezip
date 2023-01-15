@@ -42,6 +42,7 @@ class ServerSimulator:
         context.headers['Content-Range'] = rz.RemoteFetcher.build_range_header(init_pos, init_pos + len(content))
         return content
 
+
 class LocalFetcher(rz.RemoteFetcher):
     def fetch(self, data_range, stream=False):
         with open(self._url, 'rb') as f:
@@ -60,8 +61,8 @@ class LocalFetcher(rz.RemoteFetcher):
 
             f = io.BytesIO(f.read(range_max - range_min + 1))
             buff = rz.PartialBuffer(f, range_min, range_max - range_min + 1, stream=stream)
-            #buff = self._make_buffer(f, content_range, stream=stream)
         return buff
+
 
 class TestPartialBuffer(unittest.TestCase):
     def setUp(self):
@@ -286,6 +287,19 @@ class TestRemoteZip(unittest.TestCase):
             fetcher = rz.RemoteFetcher("http://test.com/file.zip")
             buffer = fetcher.fetch((-100, None), stream=True)
             self.assertEqual(buffer.tell(), 10)
+            self.assertEqual(buffer.read(3), b"abc")
+
+    def test_fetch_ending_unsupported_suffix(self):
+        # fetch file ending
+        expected_headers = {'Range': 'bytes=900-999'}
+        headers = {'Content-Range': 'Bytes 900-999/1000'}
+        with requests_mock.Mocker() as m:
+            m.head("http://test.com/file.zip", status_code=200, headers={'Content-Length': '1000'})
+            m.get("http://test.com/file.zip", content=b"abc", status_code=200, headers=headers,
+                  request_headers=expected_headers)
+            fetcher = rz.RemoteFetcher("http://test.com/file.zip", support_suffix_range=False)
+            buffer = fetcher.fetch((-100, None), stream=True)
+            self.assertEqual(buffer.tell(), 900)
             self.assertEqual(buffer.read(3), b"abc")
 
     @staticmethod
