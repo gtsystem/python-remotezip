@@ -162,10 +162,11 @@ class RemoteIO(io.IOBase):
 
 class RemoteFetcher:
     """Represent a remote file to be fetched in parts"""
-    def __init__(self, url, session=None, **kwargs):
+    def __init__(self, url, session=None, support_suffix_range=True, **kwargs):
         self._kwargs = kwargs
         self._url = url
         self._session = session
+        self._support_suffix_range = support_suffix_range
 
     @staticmethod
     def parse_range_header(content_range_header):
@@ -191,15 +192,33 @@ class RemoteFetcher:
             raise RangeNotSupported("The server doesn't support range requests")
         return res.raw, res.headers['Content-Range']
 
-    def prepare_request(self, data_range):
-        range_header = self.build_range_header(*data_range)
+    def prepare_request(self, data_range=None):
         kwargs = dict(self._kwargs)
         kwargs['headers'] = headers = dict(kwargs.get('headers', {}))
-        headers['Range'] = range_header
+        if data_range is not None:
+            headers['Range'] = self.build_range_header(*data_range)
         return kwargs
+
+    def get_file_size(self):
+        if self._session:
+            res = self._session.head(self._url, **self.prepare_request())
+        else:
+            res = requests.head(self._url, **self.prepare_request())
+        try:
+            res.raise_for_status()
+            return int(res.headers['Content-Length'])
+        except IOError as e:
+            raise RemoteIOError(str(e))
+        except KeyError:
+            raise RemoteZipError("Cannot get file size: Content-Length header missing")
 
     def fetch(self, data_range, stream=False):
         """Fetch a part of a remote file"""
+        # Handle the case suffix range request is not supported. Fixes #15
+        if data_range[0] < 0 and data_range[1] is None and not self._support_suffix_range:
+            size = self.get_file_size()
+            data_range = (max(0, size + data_range[0]), size - 1)
+
         kwargs = self.prepare_request(data_range)
         try:
             res, range_header = self._request(kwargs)
@@ -217,8 +236,9 @@ def pairwise(iterable):
 
 
 class RemoteZip(zipfile.ZipFile):
-    def __init__(self, url, initial_buffer_size=64*1024, session=None, fetcher=RemoteFetcher, **kwargs):
-        fetcher = fetcher(url, session, **kwargs)
+    def __init__(self, url, initial_buffer_size=64*1024, session=None, fetcher=RemoteFetcher, support_suffix_range=True,
+                 **kwargs):
+        fetcher = fetcher(url, session, support_suffix_range=support_suffix_range, **kwargs)
         rio = RemoteIO(fetcher.fetch, initial_buffer_size)
         super(RemoteZip, self).__init__(rio)
         rio.set_position_to_size(self._get_position_to_size())
