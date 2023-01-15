@@ -5,7 +5,7 @@ with open("README.md") as f:
 
 setup(
     name='remotezip',
-    version='0.11.1',
+    version='0.12.0',
     author='Giuseppe Tribulato',
     author_email='gtsystem@gmail.com',
     py_modules=['remotezip'],
