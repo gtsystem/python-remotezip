@@ -5,8 +5,8 @@ from tabulate import tabulate
 from remotezip import RemoteZip
 
 
-def list_files(url, filenames):
-    with RemoteZip(url, headers={'User-Agent': 'remotezip'}) as zip:
+def list_files(url, support_suffix_range, filenames):
+    with RemoteZip(url, headers={'User-Agent': 'remotezip'}, support_suffix_range=support_suffix_range) as zip:
         if len(filenames) == 0:
             filenames = zip.namelist()
         data = [('Length', 'DateTime', 'Name')]
@@ -17,8 +17,8 @@ def list_files(url, filenames):
         print(tabulate(data, headers='firstrow'))
 
 
-def extract_files(url, filenames, path):
-    with RemoteZip(url) as zip:
+def extract_files(url, support_suffix_range, filenames, path):
+    with RemoteZip(url, support_suffix_range=support_suffix_range) as zip:
         if len(filenames) == 0:
             filenames = zip.namelist()
         for fname in filenames:
@@ -33,11 +33,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Unzip remote files")
     parser.add_argument('url', help='Url of the zip archive')
     parser.add_argument('filename', nargs='*', help='File to extract')
-    parser.add_argument('-l', '--list', action='store_true', default=False, help='List files in the archive')
+    parser.add_argument('-l', '--list', action='store_true', help='List files in the archive')
     parser.add_argument('-d', '--dir', default=os.getcwd(), help='Extract directory, default current directory')
+    parser.add_argument('--disable-suffix-range-support', action='store_true', help='Use when remote server does not support suffix range (negative offset)')
 
     args = parser.parse_args()
+    support_suffix_range = not args.disable_suffix_range_support
     if args.list:
-        list_files(args.url, args.filename)
+        list_files(args.url, support_suffix_range, args.filename)
     else:
-        extract_files(args.url, args.filename, args.dir)
+        extract_files(args.url, support_suffix_range, args.filename, args.dir)
