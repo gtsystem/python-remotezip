@@ -16,7 +16,9 @@ setup(
     long_description_content_type="text/markdown",
     install_requires=["requests", "tabulate"],
     tests_require=['requests_mock'],
-    scripts=['bin/remotezip'],
+    entry_points={
+        'console_scripts': ['remotezip = remotezip:main']
+    },
     test_suite='test_remotezip',
     classifiers=[
         'Intended Audience :: Developers',

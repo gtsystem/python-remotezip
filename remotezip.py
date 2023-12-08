@@ -1,8 +1,11 @@
+#!/usr/bin/env python
 import io
 import zipfile
+from datetime import datetime
 from itertools import tee
 
 import requests
+from tabulate import tabulate
 
 __all__ = ['RemoteIOError', 'RemoteZip']
 
@@ -252,4 +255,45 @@ class RemoteZip(zipfile.ZipFile):
         return {a: b-a for a, b in pairwise(ilist)}
 
 
+def list_files(url, support_suffix_range, filenames):
+    with RemoteZip(url, headers={'User-Agent': 'remotezip'}, support_suffix_range=support_suffix_range) as zip:
+        if len(filenames) == 0:
+            filenames = zip.namelist()
+        data = [('Length', 'DateTime', 'Name')]
+        for fname in filenames:
+            zinfo = zip.getinfo(fname)
+            dt = datetime(*zinfo.date_time)
+            data.append((zinfo.file_size, dt.strftime('%Y-%m-%d %H:%M:%S'), zinfo.filename))
+        print(tabulate(data, headers='firstrow'))
 
+
+def extract_files(url, support_suffix_range, filenames, path):
+    with RemoteZip(url, support_suffix_range=support_suffix_range) as zip:
+        if len(filenames) == 0:
+            filenames = zip.namelist()
+        for fname in filenames:
+            print('Extracting {0}...'.format(fname))
+            zip.extract(fname, path=path)
+
+
+def main():
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(description="Unzip remote files")
+    parser.add_argument('url', help='Url of the zip archive')
+    parser.add_argument('filename', nargs='*', help='File to extract')
+    parser.add_argument('-l', '--list', action='store_true', help='List files in the archive')
+    parser.add_argument('-d', '--dir', default=os.getcwd(), help='Extract directory, default current directory')
+    parser.add_argument('--disable-suffix-range-support', action='store_true', help='Use when remote server does not support suffix range (negative offset)')
+
+    args = parser.parse_args()
+    support_suffix_range = not args.disable_suffix_range_support
+    if args.list:
+        list_files(args.url, support_suffix_range, args.filename)
+    else:
+        extract_files(args.url, support_suffix_range, args.filename, args.dir)
+
+
+if __name__ == "__main__":
+    main()
