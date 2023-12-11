@@ -255,7 +255,7 @@ class RemoteZip(zipfile.ZipFile):
         return {a: b-a for a, b in pairwise(ilist)}
 
 
-def list_files(url, support_suffix_range, filenames):
+def _list_files(url, support_suffix_range, filenames):
     with RemoteZip(url, headers={'User-Agent': 'remotezip'}, support_suffix_range=support_suffix_range) as zip:
         if len(filenames) == 0:
             filenames = zip.namelist()
@@ -267,7 +267,7 @@ def list_files(url, support_suffix_range, filenames):
         print(tabulate(data, headers='firstrow'))
 
 
-def extract_files(url, support_suffix_range, filenames, path):
+def _extract_files(url, support_suffix_range, filenames, path):
     with RemoteZip(url, support_suffix_range=support_suffix_range) as zip:
         if len(filenames) == 0:
             filenames = zip.namelist()
@@ -290,9 +290,9 @@ def main():
     args = parser.parse_args()
     support_suffix_range = not args.disable_suffix_range_support
     if args.list:
-        list_files(args.url, support_suffix_range, args.filename)
+        _list_files(args.url, support_suffix_range, args.filename)
     else:
-        extract_files(args.url, support_suffix_range, args.filename, args.dir)
+        _extract_files(args.url, support_suffix_range, args.filename, args.dir)
 
 
 if __name__ == "__main__":
