@@ -15,7 +15,9 @@ setup(
     long_description=description,
     long_description_content_type="text/markdown",
     install_requires=["requests", "tabulate"],
-    tests_require=['requests_mock'],
+    extras_require={
+        "test": ["requests_mock"],
+    },
     entry_points={
         'console_scripts': ['remotezip = remotezip:main']
     },
