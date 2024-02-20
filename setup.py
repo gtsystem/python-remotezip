@@ -14,7 +14,7 @@ setup(
     description='Access zip file content hosted remotely without downloading the full file.',
     long_description=description,
     long_description_content_type="text/markdown",
-    install_requires=["requests", "tabulate"],
+    install_requires=["requests"],
     extras_require={
         "test": ["requests_mock"],
     },
