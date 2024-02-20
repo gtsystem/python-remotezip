@@ -5,7 +5,6 @@ from datetime import datetime
 from itertools import tee
 
 import requests
-from tabulate import tabulate
 
 __all__ = ['RemoteIOError', 'RemoteZip']
 
@@ -259,12 +258,26 @@ def _list_files(url, support_suffix_range, filenames):
     with RemoteZip(url, headers={'User-Agent': 'remotezip'}, support_suffix_range=support_suffix_range) as zip:
         if len(filenames) == 0:
             filenames = zip.namelist()
-        data = [('Length', 'DateTime', 'Name')]
+        data = []
         for fname in filenames:
             zinfo = zip.getinfo(fname)
             dt = datetime(*zinfo.date_time)
             data.append((zinfo.file_size, dt.strftime('%Y-%m-%d %H:%M:%S'), zinfo.filename))
-        print(tabulate(data, headers='firstrow'))
+        printTable(data, ('Length', 'DateTime', 'Name'), '><<')
+
+
+def printTable(data, header, align):
+    # get max col width & prepare formatting string
+    col_w = [len(col) for col in header]
+    for row in data:
+        col_w = [max(w, len(str(x))) for w, x in zip(col_w, row)]
+    fmt = '  '.join(f'{{:{a}{w}}}' for w, a in zip(col_w, align + '<' * 99))
+    # print table
+    print(fmt.format(*header).rstrip())
+    print(fmt.format(*['-' * w for w in col_w]))
+    for row in data:
+        print(fmt.format(*row).rstrip())
+    print()
 
 
 def _extract_files(url, support_suffix_range, filenames, path):
