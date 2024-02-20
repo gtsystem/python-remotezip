@@ -263,10 +263,10 @@ def _list_files(url, support_suffix_range, filenames):
             zinfo = zip.getinfo(fname)
             dt = datetime(*zinfo.date_time)
             data.append((zinfo.file_size, dt.strftime('%Y-%m-%d %H:%M:%S'), zinfo.filename))
-        printTable(data, ('Length', 'DateTime', 'Name'), '><<')
+        _printTable(data, ('Length', 'DateTime', 'Name'), '><<')
 
 
-def printTable(data, header, align):
+def _printTable(data, header, align):
     # get max col width & prepare formatting string
     col_w = [len(col) for col in header]
     for row in data:
