@@ -338,6 +338,7 @@ class TestRemoteZip(unittest.TestCase):
 
     def test_zip64(self):
         zfile = rz.RemoteZip('test_data/zip64.zip', fetcher=LocalFetcher)
+        self.assertEqual(zfile.size(), 1167)
         self.assertEqual(zfile.read('big_file'), b'\x00' * (1024*1024))
         self.assertIsNone(zfile.testzip())
 

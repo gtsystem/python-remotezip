@@ -253,6 +253,9 @@ class RemoteZip(zipfile.ZipFile):
         ilist.append(self.start_dir)
         return {a: b-a for a, b in pairwise(ilist)}
 
+    def size(self):
+        return self.fp._file_size if self.fp else 0
+
 
 def _list_files(url, support_suffix_range, filenames):
     with RemoteZip(url, headers={'User-Agent': 'remotezip'}, support_suffix_range=support_suffix_range) as zip:
