@@ -271,7 +271,8 @@ def _printTable(data, header, align):
     col_w = [len(col) for col in header]
     for row in data:
         col_w = [max(w, len(str(x))) for w, x in zip(col_w, row)]
-    fmt = '  '.join(f'{{:{a}{w}}}' for w, a in zip(col_w, align + '<' * 99))
+    fmt = '  '.join('{{:{}{}}}'.format(a, w)
+                    for w, a in zip(col_w, align + '<' * 99))
     # print table
     print(fmt.format(*header).rstrip())
     print(fmt.format(*['-' * w for w in col_w]))
