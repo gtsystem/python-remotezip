@@ -16,13 +16,13 @@ This module provides a way to access single members of a zip file archive withou
 
 To download the content, this library rely on the `requests` module. The constructor interface matches the function `requests.get` module.
 
-* **url**: Url where the zip file is located *(required)*.
+* **url**: URL where the zip file is located *(required)*.
 * **auth**: authentication credentials.
 * **headers**: headers to pass to the request.
 * **timeout**: timeout for the request.
 * **verify**: enable/disable certificate verification or set custom certificates location.
-* ... Please look at the [requests](http://docs.python-requests.org/en/master/user/quickstart/#make-a-request) documentation for futher usage details.
-* **initial\_buffer\_size**: How much data (in bytes) to fetch during the first connection to download the zip file central directory. If your zip file conteins a lot of files, would be a good idea to increase this parameter in order to avoid the need for further remote requests. *Default: 64kb*.
+* ... Please look at the [requests](http://docs.python-requests.org/en/master/user/quickstart/#make-a-request) documentation for further usage details.
+* **initial\_buffer\_size**: How much data (in bytes) to fetch during the first connection to download the zip file central directory. If your zip file contains a lot of files, would be a good idea to increase this parameter in order to avoid the need for further remote requests. *Default: 64kb*.
 * **session**: a custom session object to use for the request.
 * **support_suffix_range**: You can set this attribute to `False` if the remote server doesn't support suffix range
   (negative offset). Notice that this option will use one more HEAD request to fetch the content length.
@@ -68,7 +68,7 @@ with RemoteZip('http://.../myfile.zip') as zip:
 
 
 #### Download a member
-The following example will extract the file `somefile.txt` from the archive stored at the url `http://.../myfile.zip`.
+The following example will extract the file `somefile.txt` from the archive stored at the URL `http://.../myfile.zip`.
 
 ```python
 from remotezip import RemoteZip
@@ -107,7 +107,7 @@ usage: remotezip [-h] [-l] [-d DIR] url [filename [filename ...]]
 Unzip remote files
 
 positional arguments:
-  url                Url of the zip archive
+  url                URL of the zip archive
   filename           File to extract
 
 optional arguments:
@@ -145,6 +145,6 @@ How many requests will this module perform to download a member?
 * If the central directory is bigger than **initial\_buffer\_size**, a third request will be required.
 * If negative seek operations are used in `ZipExtFile`, each of them will result in a new request.
 
-## Alternative modules
+## Alternative module
 
 There is a similar module available for python [pyremotezip](https://github.com/fcvarela/pyremotezip).

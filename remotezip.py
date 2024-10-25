@@ -298,7 +298,7 @@ def main():
     import os
 
     parser = argparse.ArgumentParser(description="Unzip remote files")
-    parser.add_argument('url', help='Url of the zip archive')
+    parser.add_argument('url', help='URL of the zip archive')
     parser.add_argument('filename', nargs='*', help='File to extract')
     parser.add_argument('-l', '--list', action='store_true', help='List files in the archive')
     parser.add_argument('-d', '--dir', default=os.getcwd(), help='Extract directory, default current directory')
