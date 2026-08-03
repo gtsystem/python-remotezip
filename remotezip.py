@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import io
 import zipfile
-from datetime import datetime
 from itertools import tee
 
 import requests
@@ -264,8 +263,8 @@ def _list_files(url, support_suffix_range, filenames):
         data = []
         for fname in filenames:
             zinfo = zip.getinfo(fname)
-            dt = datetime(*zinfo.date_time)
-            data.append((zinfo.file_size, dt.strftime('%Y-%m-%d %H:%M:%S'), zinfo.filename))
+            Y, m, d, H, M, S = zinfo.date_time
+            data.append((zinfo.file_size, f"{Y:04d}-{m:02d}-{d:02d} {H:02d}:{M:02d}:{S:02d}", zinfo.filename))
         _printTable(data, ('Length', 'DateTime', 'Name'), '><<')
 
 
