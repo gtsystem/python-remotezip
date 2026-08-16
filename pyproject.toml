@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "remotezip"
+version = "0.12.4"
+description = "Access zip file content hosted remotely without downloading the full file."
+readme = "README.md"
+requires-python = ">=2.7"
+authors = [
+    {name = "Giuseppe Tribulato", email = "gtsystem@gmail.com"},
+]
+license = "MIT"
+dependencies = [
+    "requests",
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.3",
+    "Programming Language :: Python :: 3.4",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+
+[dependency-groups]
+test = ["requests-mock"]
+
+[project.urls]
+Homepage = "https://github.com/gtsystem/python-remotezip"
+
+[project.scripts]
+remotezip = "remotezip:main"
+
+[tool.setuptools]
+py-modules = ["remotezip"]

@@ -12,7 +12,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -23,17 +23,17 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v6
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install '.[test]'
+        uv sync --locked --group test --python ${{ matrix.python-version }}
     - name: Test
       run: |
-        python test_remotezip.py -v
+        uv run --locked --group test python test_remotezip.py -v
     - name: Package
       run: |
-        python -m pip install wheel
-        python setup.py bdist_wheel
+        uv build
     - name: Archive artifact
       uses: actions/upload-artifact@v4
       with:
