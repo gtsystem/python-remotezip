@@ -191,7 +191,11 @@ class RemoteFetcher:
         res.raise_for_status()
         if 'Content-Range' not in res.headers:
             raise RangeNotSupported("The server doesn't support range requests")
-        return res.raw, res.headers['Content-Range']
+        buffer = res.raw
+        if hasattr(buffer, 'decode_content'):
+            # Special case for urllib3
+            buffer.decode_content = True
+        return buffer, res.headers['Content-Range']
 
     def prepare_request(self, data_range=None):
         kwargs = dict(self._kwargs)
@@ -242,15 +246,6 @@ class RemoteZip(zipfile.ZipFile):
         fetcher = fetcher(url, session, support_suffix_range=support_suffix_range, **kwargs)
         rio = RemoteIO(fetcher.fetch, initial_buffer_size)
         super(RemoteZip, self).__init__(rio)
-        rio.set_position_to_size(self._get_position_to_size())
-
-    def _get_position_to_size(self):
-        ilist = [info.header_offset for info in self.infolist()]
-        if len(ilist) == 0:
-            return {}
-        ilist.sort()
-        ilist.append(self.start_dir)
-        return {a: b-a for a, b in pairwise(ilist)}
 
     def size(self):
         return self.fp._file_size if self.fp else 0
