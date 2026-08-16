@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "remotezip"
-version = "0.12.4"
+version = "0.12.5"
 description = "Access zip file content hosted remotely without downloading the full file."
 readme = "README.md"
 requires-python = ">=2.7"
