@@ -30,8 +30,30 @@ class PartialBuffer:
         however, any attempt to read data outside the partial data is going to fail
         with OutOfBound error.
     """
+    @staticmethod
+    def _read_up_to(buffer, size):
+        """Read at most `size` bytes into a new buffer.
+
+        A single read() is not enough: a socket-backed response can return
+        fewer bytes than requested while more are still coming. Data is written
+        straight into the result so that no intermediate copy of the whole
+        range is held.
+        """
+        result = io.BytesIO()
+        remaining = size
+        while remaining > 0:
+            chunk = buffer.read(remaining)
+            if not chunk:
+                break
+            result.write(chunk)
+            remaining -= len(chunk)
+        result.seek(0)
+        return result
+
     def __init__(self, buffer, offset, size, stream):
-        self.buffer = buffer if stream else io.BytesIO(buffer.read())
+        # Read at most `size` bytes: the declared range is what this buffer
+        # represents, and a server may send more than it announced.
+        self.buffer = buffer if stream else self._read_up_to(buffer, size)
         self._offset = offset
         self._size = size
         self._position = offset
@@ -223,7 +245,14 @@ class RemoteFetcher:
         kwargs = self.prepare_request(data_range)
         try:
             res, range_header = self._request(kwargs)
-            range_min, range_max = self.parse_range_header(range_header)
+            try:
+                range_min, range_max = self.parse_range_header(range_header)
+            except ValueError:
+                raise RemoteZipError(
+                    "Malformed Content-Range returned by the server: %s" % range_header)
+            if range_max is None or range_max < range_min:
+                raise RemoteZipError(
+                    "Invalid Content-Range returned by the server: %s" % range_header)
             return PartialBuffer(res, range_min, range_max - range_min + 1, stream)
         except IOError as e:
             raise RemoteIOError(str(e))

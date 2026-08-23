@@ -65,6 +65,36 @@ class LocalFetcher(rz.RemoteFetcher):
 
 
 class TestPartialBuffer(unittest.TestCase):
+    def test_handles_short_reads_from_the_stream(self):
+        """A socket-backed response may return less than asked for per read."""
+        class ShortReader(io.RawIOBase):
+            def __init__(self, data, chunk):
+                self._b = io.BytesIO(data)
+                self._chunk = chunk
+
+            def read(self, n=-1):
+                if n is None or n < 0:
+                    return self._b.read()
+                return self._b.read(min(n, self._chunk))
+
+        data = b'z' * 1000
+        for chunk in (1000, 512, 100, 1):
+            pb = rz.PartialBuffer(ShortReader(data, chunk), 0, len(data), stream=False)
+            self.assertEqual(pb.read(0), data)
+
+    def test_handles_a_server_sending_less_than_declared(self):
+        """A truncated response must not hang or raise; it yields what arrived."""
+        pb = rz.PartialBuffer(io.BytesIO(b'z' * 40), 0, 1000, stream=False)
+        self.assertEqual(pb.read(0), b'z' * 40)
+
+    def test_does_not_buffer_more_than_declared_size(self):
+        """A server sending more than it declared must not enlarge the buffer."""
+        oversized = io.BytesIO(b'x' * 10000)
+        pb = rz.PartialBuffer(oversized, 0, 100, stream=False)
+        self.assertEqual(len(pb.read(0)), 100)
+        # the rest of the response was never pulled into memory
+        self.assertEqual(oversized.tell(), 100)
+
     def setUp(self):
         if not hasattr(self, 'assertRaisesRegex'):
             self.assertRaisesRegex = self.assertRaisesRegexp
@@ -205,6 +235,33 @@ class TestLocalFetcher(unittest.TestCase):
 
         header = rz.RemoteFetcher.build_range_header(-123, None)
         self.assertEqual(header, 'bytes=-123')
+
+    def test_fetch_rejects_invalid_content_range(self):
+        """A server must not be able to declare a range that ends before it starts."""
+        class Fetcher(rz.RemoteFetcher):
+            def __init__(self, header):
+                super(Fetcher, self).__init__('http://test.com/file.zip')
+                self.header = header
+
+            def _request(self, kwargs):
+                return io.BytesIO(b'x' * 100), self.header
+
+        with self.assertRaises(rz.RemoteZipError):
+            Fetcher('bytes 100-50/1000').fetch((0, 99))
+
+        with self.assertRaises(rz.RemoteZipError):
+            Fetcher('bytes -500/1000').fetch((0, 99))
+
+        # a malformed header must not leak a bare ValueError to the caller.
+        # 'bytes */1000' is the RFC 7233 unsatisfied-range form, so this is not
+        # only about hostile input.
+        for bad in ('bytes abc-def/1000', 'bytes -500-100/1000', 'bytes /1000',
+                    'bytes */1000', ''):
+            with self.assertRaises(rz.RemoteZipError):
+                Fetcher(bad).fetch((0, 99))
+
+        # an unknown total length is legitimate and must still be accepted
+        Fetcher('bytes 0-99/*').fetch((0, 99))
 
     def test_parse_range_header(self):
         range_min, range_max = rz.RemoteFetcher.parse_range_header('bytes 0-11/12')
