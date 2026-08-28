@@ -64,6 +64,25 @@ class LocalFetcher(rz.RemoteFetcher):
         return buff
 
 
+class TrackingResponse(io.BytesIO):
+    """BytesIO test double that records reads and connection release."""
+    def __init__(self, data, fail_read=False):
+        super(TrackingResponse, self).__init__(data)
+        self.bytes_read = 0
+        self.fail_read = fail_read
+        self.release_count = 0
+
+    def read(self, size=-1):
+        if self.fail_read:
+            raise IOError("simulated read failure")
+        content = super(TrackingResponse, self).read(size)
+        self.bytes_read += len(content)
+        return content
+
+    def release_conn(self):
+        self.release_count += 1
+
+
 class TestPartialBuffer(unittest.TestCase):
     def test_handles_short_reads_from_the_stream(self):
         """A socket-backed response may return less than asked for per read."""
@@ -89,11 +108,29 @@ class TestPartialBuffer(unittest.TestCase):
 
     def test_does_not_buffer_more_than_declared_size(self):
         """A server sending more than it declared must not enlarge the buffer."""
-        oversized = io.BytesIO(b'x' * 10000)
+        oversized = TrackingResponse(b'x' * 10000)
         pb = rz.PartialBuffer(oversized, 0, 100, stream=False)
         self.assertEqual(len(pb.read(0)), 100)
         # the rest of the response was never pulled into memory
-        self.assertEqual(oversized.tell(), 100)
+        self.assertEqual(oversized.bytes_read, 100)
+        self.assertTrue(oversized.closed)
+        self.assertEqual(oversized.release_count, 1)
+
+    def test_closes_source_when_buffering_fails(self):
+        source = TrackingResponse(b'x' * 100, fail_read=True)
+        with self.assertRaises(IOError):
+            rz.PartialBuffer(source, 0, 100, stream=False)
+        self.assertTrue(source.closed)
+        self.assertEqual(source.release_count, 1)
+
+    def test_stream_owns_source_until_closed(self):
+        source = TrackingResponse(b'x' * 100)
+        pb = rz.PartialBuffer(source, 0, 100, stream=True)
+        self.assertFalse(source.closed)
+        self.assertEqual(source.release_count, 0)
+        pb.close()
+        self.assertTrue(source.closed)
+        self.assertEqual(source.release_count, 1)
 
     def setUp(self):
         if not hasattr(self, 'assertRaisesRegex'):
@@ -242,26 +279,39 @@ class TestLocalFetcher(unittest.TestCase):
             def __init__(self, header):
                 super(Fetcher, self).__init__('http://test.com/file.zip')
                 self.header = header
+                self.response = TrackingResponse(b'x' * 100)
 
             def _request(self, kwargs):
-                return io.BytesIO(b'x' * 100), self.header
+                return self.response, self.header
 
+        invalid = Fetcher('bytes 100-50/1000')
         with self.assertRaises(rz.RemoteZipError):
-            Fetcher('bytes 100-50/1000').fetch((0, 99))
+            invalid.fetch((0, 99))
+        self.assertTrue(invalid.response.closed)
+        self.assertEqual(invalid.response.release_count, 1)
 
+        invalid = Fetcher('bytes -500/1000')
         with self.assertRaises(rz.RemoteZipError):
-            Fetcher('bytes -500/1000').fetch((0, 99))
+            invalid.fetch((0, 99))
+        self.assertTrue(invalid.response.closed)
+        self.assertEqual(invalid.response.release_count, 1)
 
         # a malformed header must not leak a bare ValueError to the caller.
         # 'bytes */1000' is the RFC 7233 unsatisfied-range form, so this is not
         # only about hostile input.
         for bad in ('bytes abc-def/1000', 'bytes -500-100/1000', 'bytes /1000',
                     'bytes */1000', ''):
+            malformed = Fetcher(bad)
             with self.assertRaises(rz.RemoteZipError):
-                Fetcher(bad).fetch((0, 99))
+                malformed.fetch((0, 99))
+            self.assertTrue(malformed.response.closed)
+            self.assertEqual(malformed.response.release_count, 1)
 
         # an unknown total length is legitimate and must still be accepted
-        Fetcher('bytes 0-99/*').fetch((0, 99))
+        valid = Fetcher('bytes 0-99/*')
+        valid.fetch((0, 99))
+        self.assertTrue(valid.response.closed)
+        self.assertEqual(valid.response.release_count, 1)
 
     def test_parse_range_header(self):
         range_min, range_max = rz.RemoteFetcher.parse_range_header('bytes 0-11/12')

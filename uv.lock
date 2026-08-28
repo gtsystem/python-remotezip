@@ -211,7 +211,7 @@ wheels = [
 
 [[package]]
 name = "remotezip"
-version = "0.12.5"
+version = "0.12.6"
 source = { editable = "." }
 dependencies = [
     { name = "requests", version = "2.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
