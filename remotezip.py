@@ -50,10 +50,25 @@ class PartialBuffer:
         result.seek(0)
         return result
 
+    @staticmethod
+    def _close_buffer(buffer):
+        """Close a response buffer and release its connection, if any."""
+        try:
+            buffer.close()
+        finally:
+            if hasattr(buffer, 'release_conn'):
+                buffer.release_conn()
+
     def __init__(self, buffer, offset, size, stream):
         # Read at most `size` bytes: the declared range is what this buffer
         # represents, and a server may send more than it announced.
-        self.buffer = buffer if stream else self._read_up_to(buffer, size)
+        if stream:
+            self.buffer = buffer
+        else:
+            try:
+                self.buffer = self._read_up_to(buffer, size)
+            finally:
+                self._close_buffer(buffer)
         self._offset = offset
         self._size = size
         self._position = offset
@@ -78,9 +93,7 @@ class PartialBuffer:
     def close(self):
         """Ensure memory and connections are closed"""
         if not self.buffer.closed:
-            self.buffer.close()
-            if hasattr(self.buffer, 'release_conn'):
-                self.buffer.release_conn()
+            self._close_buffer(self.buffer)
 
     def tell(self):
         """Returns the current position on the virtual buffer"""
@@ -246,13 +259,17 @@ class RemoteFetcher:
         try:
             res, range_header = self._request(kwargs)
             try:
-                range_min, range_max = self.parse_range_header(range_header)
-            except ValueError:
-                raise RemoteZipError(
-                    "Malformed Content-Range returned by the server: %s" % range_header)
-            if range_max is None or range_max < range_min:
-                raise RemoteZipError(
-                    "Invalid Content-Range returned by the server: %s" % range_header)
+                try:
+                    range_min, range_max = self.parse_range_header(range_header)
+                except ValueError:
+                    raise RemoteZipError(
+                        "Malformed Content-Range returned by the server: %s" % range_header)
+                if range_max is None or range_max < range_min:
+                    raise RemoteZipError(
+                        "Invalid Content-Range returned by the server: %s" % range_header)
+            except RemoteZipError:
+                PartialBuffer._close_buffer(res)
+                raise
             return PartialBuffer(res, range_min, range_max - range_min + 1, stream)
         except IOError as e:
             raise RemoteIOError(str(e))
